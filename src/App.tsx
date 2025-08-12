@@ -8,6 +8,8 @@ import { Toaster } from "sonner";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { User, Session } from '@supabase/supabase-js';
+import Landing from "@/pages/Landing";
+import Support from "@/pages/Support";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -67,10 +69,12 @@ const App = () => {
       <RouterComponent>
         <div className="min-h-screen dark">
           <Routes>
-            <Route path="/" element={user ? <Dashboard /> : <Auth />} />
+            <Route path="/" element={<Landing />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/booking" element={<Booking />} />
-            <Route path="*" element={user ? <Dashboard /> : <Auth />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/suporte" element={<Support />} />
+            <Route path="*" element={<Landing />} />
           </Routes>
         </div>
         <Toaster position="top-right" theme="dark" />

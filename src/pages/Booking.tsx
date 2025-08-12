@@ -34,6 +34,8 @@ export default function Booking() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [booking, setBooking] = useState<any>(null);
   const [pros, setPros] = useState<string[]>([]);
+  const [loadingLojas, setLoadingLojas] = useState<boolean>(false);
+  const [lojasError, setLojasError] = useState<string | null>(null);
 
   useEffect(() => {
     document.title = "Agendar atendimento | ÁSPERUS";
@@ -41,16 +43,8 @@ export default function Booking() {
 
   // Carregar lojas
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase.from("info_loja").select("*");
-      if (error) {
-        console.error(error);
-        toast.error("Não foi possível carregar as lojas.");
-        return;
-      }
-      setLojas(data || []);
-      if (data && data.length && !lojaId) setLojaId(data[0].id);
-    })();
+    fetchLojas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Carregar profissionais (fonte: distintos da tabela atual)
@@ -89,6 +83,23 @@ export default function Booking() {
       toast.error("Erro ao buscar horários disponíveis.");
     } finally {
       setLoadingSlots(false);
+    }
+  }
+
+  async function fetchLojas() {
+    setLoadingLojas(true);
+    setLojasError(null);
+    try {
+      const { data, error } = await supabase.from("info_loja").select("id, name, address, opening_time, closing_time, slot_interval_minutes, phone, maps_url");
+      if (error) throw error;
+      setLojas(data || []);
+      if (data && data.length && !lojaId) setLojaId(data[0].id);
+    } catch (e: any) {
+      console.error(e);
+      setLojasError("Não foi possível carregar as lojas.");
+      toast.error("Não foi possível carregar as lojas.");
+    } finally {
+      setLoadingLojas(false);
     }
   }
 
@@ -157,21 +168,37 @@ export default function Booking() {
               <CardTitle>Loja</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Select value={lojaId} onValueChange={setLojaId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a loja" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lojas.map((l) => (
-                    <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {loja?.address && (
-                <div className="text-sm text-muted-foreground flex items-center gap-2">
-                  <MapPin size={16} />
-                  <span>{loja.address}</span>
+              {loadingLojas ? (
+                <div className="space-y-3">
+                  <div className="h-10 rounded-md bg-muted animate-pulse" />
+                  <div className="h-4 w-3/4 rounded-md bg-muted animate-pulse" />
                 </div>
+              ) : lojasError ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-destructive">{lojasError}</p>
+                  <Button variant="secondary" size="sm" onClick={fetchLojas}>
+                    Tentar novamente
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Select value={lojaId} onValueChange={setLojaId}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a loja" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {lojas.map((l) => (
+                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {loja?.address && (
+                    <div className="text-sm text-muted-foreground flex items-center gap-2">
+                      <MapPin size={16} />
+                      <span>{loja.address}</span>
+                    </div>
+                  )}
+                </>
               )}
             </CardContent>
           </Card>

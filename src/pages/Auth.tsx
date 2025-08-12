@@ -24,7 +24,7 @@ export const Auth = () => {
     const checkUser = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        navigate("/");
+        navigate("/dashboard");
       }
     };
     
@@ -46,7 +46,7 @@ export const Auth = () => {
       }
 
       // Sucesso - redirecionar para dashboard
-      navigate("/");
+      navigate("/dashboard");
     } catch (error: any) {
       toast.error("Email ou senha inválidos. Tente novamente.");
       console.error("Erro ao fazer login:", error.message);
@@ -72,9 +72,6 @@ export const Auth = () => {
         </h1>
       </div>
 
-      <div className="absolute top-12 right-12 z-10">
-        <Button onClick={() => navigate('/booking')}>Agendar Atendimento</Button>
-      </div>
 
       <Card className="w-full max-w-md bg-card/95 backdrop-blur-sm border-border shadow-2xl relative z-10">
         <CardHeader className="space-y-1 text-center">
