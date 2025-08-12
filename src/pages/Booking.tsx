@@ -23,11 +23,12 @@ interface Loja {
   slot_interval_minutes?: number;
 }
 
+const ANY_PROF = "__ANY__";
 export default function Booking() {
   const [lojas, setLojas] = useState<Loja[]>([]);
   const [lojaId, setLojaId] = useState<string>("");
   const [date, setDate] = useState<Date | undefined>(undefined);
-  const [professional, setProfessional] = useState<string>("");
+  const [professional, setProfessional] = useState<string>(ANY_PROF);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [slots, setSlots] = useState<string[]>([]);
@@ -74,7 +75,7 @@ export default function Booking() {
     setLoadingSlots(true);
     try {
       const { data, error } = await supabase.functions.invoke("get_available_slots", {
-        body: { loja_id: lojaId, date: dateStr, professional: professional || undefined },
+        body: { loja_id: lojaId, date: dateStr, professional: professional === ANY_PROF ? undefined : professional },
       });
       if (error) throw error;
       setSlots((data?.slots as string[]) || []);
@@ -138,7 +139,7 @@ export default function Booking() {
           time,
           name,
           contact,
-          professional: professional || undefined,
+          professional: professional === ANY_PROF ? undefined : professional,
         },
       });
       if (error) throw error;
@@ -246,7 +247,7 @@ export default function Booking() {
                   <SelectValue placeholder="Qualquer" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Qualquer</SelectItem>
+                  <SelectItem value={ANY_PROF}>Qualquer</SelectItem>
                   {pros.map((p) => (
                     <SelectItem key={p} value={p}>{p}</SelectItem>
                   ))}
