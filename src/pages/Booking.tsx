@@ -11,7 +11,6 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { CalendarIcon, MapPin, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-
 interface Loja {
   id: string;
   name: string;
@@ -22,7 +21,6 @@ interface Loja {
   closing_time?: string;
   slot_interval_minutes?: number;
 }
-
 const ANY_PROF = "__ANY__";
 export default function Booking() {
   const [lojas, setLojas] = useState<Loja[]>([]);
@@ -37,7 +35,6 @@ export default function Booking() {
   const [pros, setPros] = useState<string[]>([]);
   const [loadingLojas, setLoadingLojas] = useState<boolean>(false);
   const [lojasError, setLojasError] = useState<string | null>(null);
-
   useEffect(() => {
     document.title = "Agendar atendimento | ÁSPERUS";
   }, []);
@@ -52,16 +49,15 @@ export default function Booking() {
   useEffect(() => {
     if (!lojaId) return;
     (async () => {
-      const { data, error } = await supabase
-        .from("agendamentos_robustos")
-        .select("PROFISSIONAL")
-        .eq("loja_id", lojaId);
+      const {
+        data,
+        error
+      } = await supabase.from("agendamentos_robustos").select("PROFISSIONAL").eq("loja_id", lojaId);
       if (error) return;
       const uniq = Array.from(new Set((data || []).map((r: any) => r.PROFISSIONAL).filter(Boolean)));
       setPros(uniq);
     })();
   }, [lojaId]);
-
   const dateStr = useMemo(() => {
     if (!date) return "";
     const y = date.getFullYear();
@@ -69,16 +65,22 @@ export default function Booking() {
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
   }, [date]);
-
   async function fetchSlots() {
     if (!lojaId || !dateStr) return;
     setLoadingSlots(true);
     try {
-      const { data, error } = await supabase.functions.invoke("get_available_slots", {
-        body: { loja_id: lojaId, date: dateStr, professional: professional === ANY_PROF ? undefined : professional },
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("get_available_slots", {
+        body: {
+          loja_id: lojaId,
+          date: dateStr,
+          professional: professional === ANY_PROF ? undefined : professional
+        }
       });
       if (error) throw error;
-      setSlots((data?.slots as string[]) || []);
+      setSlots(data?.slots as string[] || []);
     } catch (e: any) {
       console.error(e);
       toast.error("Erro ao buscar horários disponíveis.");
@@ -86,12 +88,14 @@ export default function Booking() {
       setLoadingSlots(false);
     }
   }
-
   async function fetchLojas() {
     setLoadingLojas(true);
     setLojasError(null);
     try {
-      const { data, error } = await supabase.from("info_loja").select("id, name, address, opening_time, closing_time, slot_interval_minutes, phone, maps_url");
+      const {
+        data,
+        error
+      } = await supabase.from("info_loja").select("id, name, address, opening_time, closing_time, slot_interval_minutes, phone, maps_url");
       if (error) throw error;
       setLojas(data || []);
       if (data && data.length && !lojaId) setLojaId(data[0].id);
@@ -113,34 +117,33 @@ export default function Booking() {
   // Realtime para atualizar slots quando houver mudanças
   useEffect(() => {
     if (!lojaId || !dateStr) return;
-    const channel = supabase
-      .channel("booking-slots")
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "agendamentos_robustos" },
-        () => fetchSlots()
-      )
-      .subscribe();
+    const channel = supabase.channel("booking-slots").on("postgres_changes", {
+      event: "*",
+      schema: "public",
+      table: "agendamentos_robustos"
+    }, () => fetchSlots()).subscribe();
     return () => {
       supabase.removeChannel(channel);
     };
   }, [lojaId, dateStr, professional]);
-
   async function handleBook(time: string) {
     if (!name || !contact) {
       toast.warning("Preencha nome e contato.");
       return;
     }
     try {
-      const { data, error } = await supabase.functions.invoke("book_slot", {
+      const {
+        data,
+        error
+      } = await supabase.functions.invoke("book_slot", {
         body: {
           loja_id: lojaId,
           date: dateStr,
           time,
           name,
           contact,
-          professional: professional === ANY_PROF ? undefined : professional,
-        },
+          professional: professional === ANY_PROF ? undefined : professional
+        }
       });
       if (error) throw error;
       setBooking(data?.booking);
@@ -151,11 +154,8 @@ export default function Booking() {
       toast.error(msg.includes("duplicate") ? "Horário indisponível." : msg);
     }
   }
-
-  const loja = lojas.find((l) => l.id === lojaId);
-
-  return (
-    <div className="min-h-screen bg-background">
+  const loja = lojas.find(l => l.id === lojaId);
+  return <div className="min-h-screen bg-background">
       <main className="container mx-auto px-6 py-8">
         <header className="mb-8 text-center">
           <h1 className="text-3xl font-bold text-primary">Agendar atendimento</h1>
@@ -164,76 +164,14 @@ export default function Booking() {
 
         <div className="grid gap-6 md:grid-cols-3">
           {/* Loja */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Loja</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {loadingLojas ? (
-                <div className="space-y-3">
-                  <div className="h-10 rounded-md bg-muted animate-pulse" />
-                  <div className="h-4 w-3/4 rounded-md bg-muted animate-pulse" />
-                </div>
-              ) : lojasError ? (
-                <div className="space-y-3">
-                  <p className="text-sm text-destructive">{lojasError}</p>
-                  <Button variant="secondary" size="sm" onClick={fetchLojas}>
-                    Tentar novamente
-                  </Button>
-                </div>
-              ) : (
-                <>
-                  <Select value={lojaId} onValueChange={setLojaId}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a loja" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {lojas.map((l) => (
-                        <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {loja?.address && (
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      <MapPin size={16} />
-                      <span>{loja.address}</span>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
+          
 
           {/* Data */}
           <Card>
             <CardHeader>
               <CardTitle>Data</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon />
-                    {date ? format(date, "PPP") : <span>Escolha uma data</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                    className={cn("p-3 pointer-events-auto")}
-                  />
-                </PopoverContent>
-              </Popover>
-            </CardContent>
+            
           </Card>
 
           {/* Profissional (opcional) */}
@@ -248,9 +186,7 @@ export default function Booking() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={ANY_PROF}>Qualquer</SelectItem>
-                  {pros.map((p) => (
-                    <SelectItem key={p} value={p}>{p}</SelectItem>
-                  ))}
+                  {pros.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}
                 </SelectContent>
               </Select>
             </CardContent>
@@ -263,26 +199,14 @@ export default function Booking() {
             <CardTitle>Horários disponíveis</CardTitle>
           </CardHeader>
           <CardContent>
-            {(!lojaId || !dateStr) && (
-              <p className="text-sm text-muted-foreground">Selecione loja e data para ver os horários.</p>
-            )}
-            {lojaId && dateStr && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
-                {loadingSlots ? (
-                  Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />
-                  ))
-                ) : slots.length ? (
-                  slots.map((s) => (
-                    <Button key={s} variant="secondary" onClick={() => handleBook(s)}>
+            {(!lojaId || !dateStr) && <p className="text-sm text-muted-foreground">Selecione loja e data para ver os horários.</p>}
+            {lojaId && dateStr && <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
+                {loadingSlots ? Array.from({
+              length: 6
+            }).map((_, i) => <div key={i} className="h-10 rounded-md bg-muted animate-pulse" />) : slots.length ? slots.map(s => <Button key={s} variant="secondary" onClick={() => handleBook(s)}>
                       {s}
-                    </Button>
-                  ))
-                ) : (
-                  <p className="text-sm text-muted-foreground">Nenhum horário disponível.</p>
-                )}
-              </div>
-            )}
+                    </Button>) : <p className="text-sm text-muted-foreground">Nenhum horário disponível.</p>}
+              </div>}
           </CardContent>
         </Card>
 
@@ -294,18 +218,17 @@ export default function Booking() {
           <CardContent className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} />
+              <Input id="name" value={name} onChange={e => setName(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="contact">Contato</Label>
-              <Input id="contact" value={contact} onChange={(e) => setContact(e.target.value)} />
+              <Input id="contact" value={contact} onChange={e => setContact(e.target.value)} />
             </div>
           </CardContent>
         </Card>
 
         {/* Confirmação */}
-        {booking && (
-          <Card className="mt-6 border-primary/40">
+        {booking && <Card className="mt-6 border-primary/40">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-primary">
                 <CheckCircle2 /> Agendamento confirmado
@@ -313,20 +236,16 @@ export default function Booking() {
             </CardHeader>
             <CardContent className="space-y-2">
               <p>
-                {format(new Date(booking.DATA), "PPP")} às {String(booking.HORA).slice(0,5)}
+                {format(new Date(booking.DATA), "PPP")} às {String(booking.HORA).slice(0, 5)}
                 {booking.PROFISSIONAL ? ` com ${booking.PROFISSIONAL}` : ""}
               </p>
               {loja?.name && <p>Loja: {loja.name}</p>}
               {loja?.address && <p>Endereço: {loja.address}</p>}
-              {loja?.maps_url && (
-                <a className="text-primary underline" href={loja.maps_url} target="_blank" rel="noreferrer">
+              {loja?.maps_url && <a className="text-primary underline" href={loja.maps_url} target="_blank" rel="noreferrer">
                   Abrir no Maps
-                </a>
-              )}
+                </a>}
             </CardContent>
-          </Card>
-        )}
+          </Card>}
       </main>
-    </div>
-  );
+    </div>;
 }
